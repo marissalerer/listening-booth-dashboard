@@ -1,0 +1,36 @@
+{
+  "name": "listening-booth-dashboard",
+  "version": "1.0.0",
+  "description": "The Listening Booth events dashboard and reporting system",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "report": "node enhanced-venue-manager.js",
+    "html-report": "node enhanced-venue-manager.js html",
+    "test": "node enhanced-venue-manager.js report 5"
+  },
+  "keywords": [
+    "events",
+    "venue",
+    "dashboard",
+    "wix",
+    "music"
+  ],
+  "author": "The Listening Booth",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.12.2",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^7.0.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "commonjs"
+}
