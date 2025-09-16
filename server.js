@@ -361,8 +361,10 @@ app.get('/', (req, res) => {
         .event-url a {
             color: #667eea;
             text-decoration: none;
-            font-size: 0.85em;
+            font-size: 0.8em;
             transition: color 0.3s ease;
+            word-break: break-all;
+            line-height: 1.3;
         }
         
         .event-url a:hover {
@@ -674,7 +676,7 @@ app.get('/', (req, res) => {
                         '<div class="event-title">' + event.title + '</div>' +
                         '<div class="event-date">' + event.date + '</div>' +
                         '<div class="event-venue">' + event.venue + '</div>' +
-                        '<div class="event-url"><a href="' + eventUrl + '" target="_blank" rel="noopener">View Event Details</a></div>' +
+                        '<div class="event-url"><a href="' + eventUrl + '" target="_blank" rel="noopener">' + eventUrl + '</a></div>' +
                         '<div class="event-sales">' +
                             '<span class="tickets-sold ' + statusClass + '">' + ticketInfo + '</span>' +
                             eventBadge +
