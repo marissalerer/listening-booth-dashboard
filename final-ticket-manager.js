@@ -1,4 +1,4 @@
-// final-ticket-manager.js - Complete solution without revenue calculation
+// final-ticket-manager.js - Updated to exclude free events from average calculation
 require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
@@ -53,7 +53,7 @@ class FinalTicketManager {
 
     async getUpcomingEventsWithTickets(limit = 20) {
         try {
-            console.log(`📅 Fetching next ${limit} events with ticket sales...`);
+            console.log(`Fetching next ${limit} events with ticket sales...`);
             
             // Get all events
             let allEvents = [];
@@ -118,6 +118,11 @@ class FinalTicketManager {
                 const paidTickets = ticketsResult.tickets?.filter(ticket => !ticket.free) || [];
                 const freeTickets = ticketsResult.tickets?.filter(ticket => ticket.free) || [];
                 
+                // Determine if this is a ticketed event (has paid tickets) or free/RSVP event
+                const isPaidEvent = paidTickets.length > 0;
+                const isFreeEvent = freeTickets.length === ticketsSold && ticketsSold > 0;
+                const isRSVPOnly = ticketsSold === 0 && this.isRSVPEvent(event.title);
+                
                 eventsWithTickets.push({
                     ...event,
                     ticketsSold,
@@ -127,8 +132,9 @@ class FinalTicketManager {
                     salesStatus,
                     eventType: this.categorizeEvent(event.title),
                     venue: event.location?.name || 'The Listening Booth',
-                    isPaid: paidTickets.length > 0,
-                    isFree: freeTickets.length === ticketsSold && ticketsSold > 0
+                    isPaid: isPaidEvent,
+                    isFree: isFreeEvent,
+                    isRSVPOnly: isRSVPOnly
                 });
                 
                 if (i < upcomingEvents.length - 1) {
@@ -159,6 +165,14 @@ class FinalTicketManager {
         return 'Concert';
     }
 
+    // Determine if an event is likely RSVP-only based on title/type
+    isRSVPEvent(title) {
+        const titleLower = title.toLowerCase();
+        return titleLower.includes('open mic') || 
+               titleLower.includes('jam') || 
+               titleLower.includes('lessons');
+    }
+
     async generateTicketReport(limit = 20) {
         try {
             const data = await this.getUpcomingEventsWithTickets(limit);
@@ -170,8 +184,13 @@ class FinalTicketManager {
             const totalTicketsSold = data.events.reduce((sum, event) => sum + event.ticketsSold, 0);
             const totalPaidTickets = data.events.reduce((sum, event) => sum + event.paidTickets, 0);
             const totalFreeTickets = data.events.reduce((sum, event) => sum + event.freeTickets, 0);
-            const averageTicketsPerEvent = data.events.length > 0 ? 
-                Math.round(totalTicketsSold / data.events.length * 10) / 10 : 0;
+            
+            // Only include events that sell tickets for the average calculation
+            const ticketedEvents = data.events.filter(event => 
+                event.isPaid || (event.ticketsSold > 0 && !event.isRSVPOnly)
+            );
+            const averageTicketsPerEvent = ticketedEvents.length > 0 ? 
+                Math.round(totalTicketsSold / ticketedEvents.length * 10) / 10 : 0;
             
             // Event type breakdown
             const eventTypes = {};
@@ -203,7 +222,9 @@ class FinalTicketManager {
                     totalTicketsSold,
                     totalPaidTickets,
                     totalFreeTickets,
-                    averageTicketsPerEvent,
+                    averageTicketsPerEvent, // Now only for ticketed events
+                    ticketedEventsCount: ticketedEvents.length,
+                    freeEventsCount: data.events.filter(e => e.isFree || e.isRSVPOnly).length,
                     eventTypes,
                     salesBreakdown,
                     venueBreakdown,
@@ -231,6 +252,7 @@ class FinalTicketManager {
                     venue: event.venue,
                     isPaid: event.isPaid,
                     isFree: event.isFree,
+                    isRSVPOnly: event.isRSVPOnly,
                     eventId: event.id
                 })),
                 generatedAt: data.generatedAt
@@ -248,26 +270,26 @@ class FinalTicketManager {
         const reportData = await this.generateTicketReport(limit);
         
         if (!reportData.success) {
-            console.log('❌ Error generating ticket report:', reportData.error);
+            console.log('Error generating ticket report:', reportData.error);
             return;
         }
         
         const report = reportData.report;
         
-        console.log('\n🎫 THE LISTENING BOOTH - TICKET SALES REPORT');
-        console.log('==============================================');
-        console.log(`📊 ${report.summary.totalUpcomingEvents} events | ${report.summary.totalTicketsSold} tickets sold`);
-        console.log(`🎟️  ${report.summary.totalPaidTickets} paid tickets | ${report.summary.totalFreeTickets} free tickets`);
-        console.log(`📈 Average: ${report.summary.averageTicketsPerEvent} tickets/event`);
+        console.log('\nTHE LISTENING BOOTH - TICKET SALES REPORT');
+        console.log('===========================================');
+        console.log(`${report.summary.totalUpcomingEvents} events | ${report.summary.totalTicketsSold} tickets sold`);
+        console.log(`${report.summary.totalPaidTickets} paid tickets | ${report.summary.totalFreeTickets} free tickets`);
+        console.log(`Average: ${report.summary.averageTicketsPerEvent} tickets per ticketed event (${report.summary.ticketedEventsCount} ticketed events)`);
         
         const sb = report.summary.salesBreakdown;
-        console.log(`🎯 Performance: ${sb.high} high sales | ${sb.medium} medium | ${sb.low} low | ${sb.urgent} urgent\n`);
+        console.log(`Performance: ${sb.high} high sales | ${sb.medium} medium | ${sb.low} low | ${sb.urgent} urgent\n`);
         
         // Top selling events
         if (report.summary.topSellingEvents.length > 0) {
-            console.log('🔥 TOP SELLING EVENTS:');
+            console.log('TOP SELLING EVENTS:');
             report.summary.topSellingEvents.forEach((event, index) => {
-                const typeIcon = event.type === 'paid' ? '💰' : event.type === 'free' ? '🆓' : '🎫';
+                const typeIcon = event.type === 'paid' ? 'PAID' : event.type === 'free' ? 'FREE' : '';
                 console.log(`   ${index + 1}. ${event.title} - ${event.tickets} tickets ${typeIcon}`);
             });
             console.log('');
@@ -275,82 +297,93 @@ class FinalTicketManager {
         
         // This week's events
         if (report.summary.thisWeekEvents.length > 0) {
-            console.log(`📅 THIS WEEK (${report.summary.thisWeekEvents.length} events):`);
+            console.log(`THIS WEEK (${report.summary.thisWeekEvents.length} events):`);
             report.summary.thisWeekEvents.forEach(event => {
                 const statusIcon = {
-                    'high': '🔥',
-                    'medium': '👍', 
-                    'low': '📢',
-                    'urgent': '⚠️'
+                    'high': 'HIGH',
+                    'medium': 'MED', 
+                    'low': 'LOW',
+                    'urgent': 'URGENT'
                 }[event.salesStatus];
                 console.log(`   ${statusIcon} ${event.title} - ${event.ticketsSold} tickets (${event.daysFromNow} days)`);
             });
             console.log('');
         }
         
-        // Event types
-        console.log('🎭 Event Types:');
+        // Event breakdown
+        console.log('Event Types:');
         Object.entries(report.summary.eventTypes).forEach(([type, count]) => {
             console.log(`   ${type}: ${count}`);
         });
         console.log('');
         
+        console.log(`Ticketed Events: ${report.summary.ticketedEventsCount}`);
+        console.log(`Free/RSVP Events: ${report.summary.freeEventsCount}`);
+        console.log('');
+        
         // Venues
-        console.log('📍 Venues:');
+        console.log('Venues:');
         Object.entries(report.summary.venueBreakdown).forEach(([venue, count]) => {
             console.log(`   ${venue}: ${count} events`);
         });
         console.log('');
         
         // Individual events
-        console.log('📅 ALL UPCOMING EVENTS:');
+        console.log('ALL UPCOMING EVENTS:');
         report.events.forEach((event, index) => {
             const statusIcon = {
-                'high': '🔥',
-                'medium': '👍', 
-                'low': '📢',
-                'urgent': '⚠️'
+                'high': 'HIGH',
+                'medium': 'MED', 
+                'low': 'LOW',
+                'urgent': 'URGENT'
             }[event.salesStatus];
             
             const typeIcon = {
-                'Concert': '🎤',
-                'Open Mic': '🎙️',
-                'Jam Session': '🎸',
-                'Workshop': '📚',
-                'Fundraiser': '💝'
-            }[event.eventType] || '🎵';
+                'Concert': 'CONCERT',
+                'Open Mic': 'OPEN MIC',
+                'Jam Session': 'JAM',
+                'Workshop': 'WORKSHOP',
+                'Fundraiser': 'FUNDRAISER'
+            }[event.eventType] || event.eventType;
             
-            const ticketInfo = event.isPaid ? `${event.paidTickets} paid` : 
-                             event.isFree ? `${event.freeTickets} free` : 
-                             `${event.ticketsSold} tickets`;
+            let ticketInfo;
+            if (event.isRSVPOnly) {
+                ticketInfo = 'RSVP only';
+            } else if (event.isPaid) {
+                ticketInfo = `${event.paidTickets} paid`;
+            } else if (event.isFree) {
+                ticketInfo = `${event.freeTickets} free`;
+            } else {
+                ticketInfo = `${event.ticketsSold} tickets`;
+            }
             
             console.log(`${index + 1}. ${event.title}`);
-            console.log(`   📅 ${event.date} (${event.daysFromNow} days away)`);
-            console.log(`   ${statusIcon} ${ticketInfo} | ${typeIcon} ${event.eventType}`);
-            console.log(`   📍 ${event.venue}`);
+            console.log(`   ${event.date} (${event.daysFromNow} days away)`);
+            console.log(`   ${statusIcon} ${ticketInfo} | ${typeIcon}`);
+            console.log(`   ${event.venue}`);
             console.log('');
         });
         
         // Urgent events warning
         if (report.summary.urgentEvents.length > 0) {
-            console.log(`⚠️  URGENT: ${report.summary.urgentEvents.length} events this week with no tickets sold:`);
+            console.log(`URGENT: ${report.summary.urgentEvents.length} events this week with no tickets sold:`);
             report.summary.urgentEvents.forEach(event => {
                 console.log(`   • ${event.title} (${event.daysFromNow} days away)`);
             });
             console.log('');
         }
         
-        console.log(`📋 Report generated: ${new Date(report.generatedAt).toLocaleString()}`);
+        console.log(`Report generated: ${new Date(report.generatedAt).toLocaleString()}`);
         
-        // Revenue note
-        console.log('\n💡 Note: Revenue calculation requires external pricing data not available in the Wix Events API.');
+        // Note about calculation
+        console.log('\nNote: Average tickets calculated only for ticketed events (excludes free/RSVP-only events).');
     }
 
     async saveHTMLReport(filename = null) {
         const reportData = await this.generateTicketReport(20);
         
         if (!reportData.success) {
-            console.log('❌ Error generating report:', reportData.error);
+            console.log('Error generating report:', reportData.error);
             return;
         }
         
@@ -360,8 +393,8 @@ class FinalTicketManager {
         const html = this.generateHTML(reportData.report);
         fs.writeFileSync(file, html);
         
-        console.log(`✅ HTML ticket report saved to ${file}`);
-        console.log('📂 Perfect for sharing with your team!');
+        console.log(`HTML ticket report saved to ${file}`);
+        console.log('Perfect for sharing with your team!');
         
         return { success: true, filename: file };
     }
@@ -383,9 +416,21 @@ class FinalTicketManager {
                 'Fundraiser': '#ef4444'
             }[event.eventType] || '#6b7280';
             
-            const ticketInfo = event.isPaid ? `${event.paidTickets} paid` : 
-                             event.isFree ? `${event.freeTickets} free` : 
-                             `${event.ticketsSold} tickets`;
+            let ticketInfo;
+            let ticketBadge = '';
+            
+            if (event.isRSVPOnly) {
+                ticketInfo = 'RSVP only';
+                ticketBadge = '<span class="rsvp-badge">RSVP</span>';
+            } else if (event.isPaid) {
+                ticketInfo = `${event.paidTickets} paid`;
+                ticketBadge = '<span class="paid-badge">PAID</span>';
+            } else if (event.isFree) {
+                ticketInfo = `${event.freeTickets} free`;
+                ticketBadge = '<span class="free-badge">FREE</span>';
+            } else {
+                ticketInfo = `${event.ticketsSold} tickets`;
+            }
             
             return `
                 <div class="event-card">
@@ -394,12 +439,11 @@ class FinalTicketManager {
                         <span class="days-away">${event.daysFromNow} days</span>
                     </div>
                     <h3 class="event-title">${event.title}</h3>
-                    <div class="event-date">📅 ${event.date}</div>
-                    <div class="event-venue">📍 ${event.venue}</div>
+                    <div class="event-date">${event.date}</div>
+                    <div class="event-venue">${event.venue}</div>
                     <div class="event-sales">
                         <span class="tickets-sold ${statusClass}">${ticketInfo}</span>
-                        ${event.isPaid ? '<span class="paid-badge">💰 PAID</span>' : ''}
-                        ${event.isFree ? '<span class="free-badge">🆓 FREE</span>' : ''}
+                        ${ticketBadge}
                     </div>
                 </div>
             `;
@@ -459,6 +503,15 @@ class FinalTicketManager {
             font-size: 2.5em;
             font-weight: bold;
             margin-bottom: 5px;
+        }
+        .note {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            color: #6c757d;
+            font-size: 0.9em;
         }
         .events-grid {
             display: grid;
@@ -522,7 +575,7 @@ class FinalTicketManager {
         .status-medium { background: #f59e0b; }
         .status-low { background: #6b7280; }
         .status-urgent { background: #ef4444; }
-        .paid-badge, .free-badge {
+        .paid-badge, .free-badge, .rsvp-badge {
             font-size: 0.8em;
             padding: 4px 8px;
             border-radius: 10px;
@@ -541,7 +594,7 @@ class FinalTicketManager {
 <body>
     <div class="container">
         <div class="header">
-            <h1 class="venue-name">🎫 The Listening Booth</h1>
+            <h1 class="venue-name">The Listening Booth</h1>
             <p>Ticket Sales Report | Lewes, Delaware</p>
         </div>
         
@@ -549,20 +602,25 @@ class FinalTicketManager {
             <div class="summary-grid">
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.totalUpcomingEvents}</div>
-                    <div>Upcoming Events</div>
+                    <div>Total Events</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.totalTicketsSold}</div>
-                    <div>Total Tickets</div>
+                    <div>Tickets Sold</div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-number">${report.summary.totalPaidTickets}</div>
-                    <div>Paid Tickets</div>
+                    <div class="summary-number">${report.summary.ticketedEventsCount}</div>
+                    <div>Ticketed Events</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.averageTicketsPerEvent}</div>
-                    <div>Avg per Event</div>
+                    <div>Avg per Ticketed Event</div>
                 </div>
+            </div>
+            
+            <div class="note">
+                <strong>Note:</strong> Average calculated only for ticketed events (${report.summary.ticketedEventsCount} events). 
+                Excludes ${report.summary.freeEventsCount} free/RSVP-only events like open mics and workshops.
             </div>
             
             <div class="events-grid">
@@ -572,7 +630,6 @@ class FinalTicketManager {
             <div class="footer">
                 <p>Last Updated: ${new Date(report.generatedAt).toLocaleString()}</p>
                 <p>The Listening Booth Events System</p>
-                <p><small>Note: Revenue data requires external pricing information</small></p>
             </div>
         </div>
     </div>
@@ -604,7 +661,7 @@ async function main() {
         }
         
     } catch (error) {
-        console.error('❌ Error:', error.message);
+        console.error('Error:', error.message);
     }
 }
 

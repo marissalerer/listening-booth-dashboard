@@ -1,4 +1,4 @@
-// server.js - Corrected version using FinalTicketManager
+// server.js - Updated with fixed email and better metrics display
 require('dotenv').config();
 const express = require('express');
 const cron = require('node-cron');
@@ -68,7 +68,8 @@ app.get('/api/health', (req, res) => {
         hasData: !!latestReport,
         uptime: process.uptime(),
         totalEvents: latestReport?.summary?.totalUpcomingEvents || 0,
-        totalTickets: latestReport?.summary?.totalTicketsSold || 0
+        totalTickets: latestReport?.summary?.totalTicketsSold || 0,
+        ticketedEvents: latestReport?.summary?.ticketedEventsCount || 0
     });
 });
 
@@ -209,7 +210,7 @@ app.get('/', (req, res) => {
         
         .summary {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 25px;
             margin-bottom: 40px;
         }
@@ -237,6 +238,16 @@ app.get('/', (req, res) => {
             margin: 10px 0 0 0;
             opacity: 0.9;
             font-size: 1.1em;
+        }
+        
+        .note {
+            background: #e0f2fe;
+            border: 1px solid #b3e5fc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            color: #01579b;
+            font-size: 0.9em;
         }
         
         .urgent-alert {
@@ -363,6 +374,14 @@ app.get('/', (req, res) => {
         .status-low { background: #6b7280; }
         .status-urgent { background: #ef4444; }
         
+        .event-badge {
+            font-size: 0.75em;
+            padding: 3px 6px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
         .sidebar-list {
             padding: 0;
             margin: 0;
@@ -464,6 +483,10 @@ app.get('/', (req, res) => {
                     <!-- Summary cards will be inserted here -->
                 </div>
                 
+                <div id="average-note" class="note" style="display: none;">
+                    <strong>Note:</strong> Average calculated only for ticketed events. Excludes free/RSVP-only events like open mics and workshops.
+                </div>
+                
                 <div class="sections">
                     <div class="events-section">
                         <div class="section-header">All Upcoming Events</div>
@@ -559,6 +582,11 @@ app.get('/', (req, res) => {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('dashboard').style.display = 'block';
             
+            // Show the average note if there are both ticketed and free events
+            if (data.summary.ticketedEventsCount && data.summary.freeEventsCount) {
+                document.getElementById('average-note').style.display = 'block';
+            }
+            
             // Handle urgent events alert
             const urgentEvents = data.summary.urgentEvents || [];
             const urgentAlert = document.getElementById('urgent-alert');
@@ -574,19 +602,19 @@ app.get('/', (req, res) => {
             const summaryHTML = 
                 '<div class="summary-card">' +
                     '<div class="summary-number">' + data.summary.totalUpcomingEvents + '</div>' +
-                    '<div class="summary-label">Upcoming Events</div>' +
+                    '<div class="summary-label">Total Events</div>' +
                 '</div>' +
                 '<div class="summary-card">' +
                     '<div class="summary-number">' + data.summary.totalTicketsSold + '</div>' +
                     '<div class="summary-label">Tickets Sold</div>' +
                 '</div>' +
                 '<div class="summary-card">' +
-                    '<div class="summary-number">' + data.summary.totalPaidTickets + '</div>' +
-                    '<div class="summary-label">Paid Tickets</div>' +
+                    '<div class="summary-number">' + data.summary.ticketedEventsCount + '</div>' +
+                    '<div class="summary-label">Ticketed Events</div>' +
                 '</div>' +
                 '<div class="summary-card">' +
                     '<div class="summary-number">' + data.summary.averageTicketsPerEvent + '</div>' +
-                    '<div class="summary-label">Avg per Event</div>' +
+                    '<div class="summary-label">Avg per Ticketed Event</div>' +
                 '</div>';
             document.getElementById('summary').innerHTML = summaryHTML;
             
@@ -602,9 +630,22 @@ app.get('/', (req, res) => {
             const eventsHTML = data.events.map(event => {
                 const statusClass = 'status-' + event.salesStatus;
                 const typeColor = typeColors[event.eventType] || '#6b7280';
-                const ticketInfo = event.isPaid ? (event.paidTickets + ' paid') : 
-                                 event.isFree ? (event.freeTickets + ' free') : 
-                                 (event.ticketsSold + ' tickets');
+                
+                let ticketInfo;
+                let eventBadge = '';
+                
+                if (event.isRSVPOnly) {
+                    ticketInfo = 'RSVP only';
+                    eventBadge = '<span class="event-badge">RSVP</span>';
+                } else if (event.isPaid) {
+                    ticketInfo = event.paidTickets + ' paid';
+                    eventBadge = '<span class="event-badge">PAID</span>';
+                } else if (event.isFree) {
+                    ticketInfo = event.freeTickets + ' free';
+                    eventBadge = '<span class="event-badge">FREE</span>';
+                } else {
+                    ticketInfo = event.ticketsSold + ' tickets';
+                }
                 
                 return '<div class="event-card">' +
                         '<div class="event-header">' +
@@ -616,6 +657,7 @@ app.get('/', (req, res) => {
                         '<div class="event-venue">' + event.venue + '</div>' +
                         '<div class="event-sales">' +
                             '<span class="tickets-sold ' + statusClass + '">' + ticketInfo + '</span>' +
+                            eventBadge +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -669,7 +711,7 @@ async function updateCache() {
         if (reportData.success) {
             latestReport = reportData.report;
             lastUpdated = new Date().toISOString();
-            console.log(`Cache updated with ${reportData.report.events.length} events, ${reportData.report.summary.totalTicketsSold} tickets sold`);
+            console.log(`Cache updated with ${reportData.report.events.length} events, ${reportData.report.summary.totalTicketsSold} tickets sold across ${reportData.report.summary.ticketedEventsCount} ticketed events`);
             
             // Send daily report if it's 9 AM
             const now = new Date();
@@ -684,7 +726,7 @@ async function updateCache() {
     }
 }
 
-// Email functions
+// Email functions - FIXED createTransport method
 async function sendTestEmail() {
     if (!process.env.EMAIL_USER) {
         throw new Error('Email not configured. Set EMAIL_USER and EMAIL_PASS environment variables.');
@@ -711,7 +753,7 @@ async function sendDailyReport(report) {
         return;
     }
     
-    const transporter = nodemailer.createTransporter(emailConfig);
+    const transporter = nodemailer.createTransport(emailConfig);
     const recipients = process.env.DAILY_REPORT_EMAILS.split(',');
     
     const urgentEvents = report.summary.urgentEvents || [];
@@ -727,19 +769,28 @@ async function sendDailyReport(report) {
             </div>
             
             <div style="padding: 30px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px;">
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
                         <div style="font-size: 2em; font-weight: bold; color: #667eea;">${report.summary.totalUpcomingEvents}</div>
-                        <div>Upcoming Events</div>
+                        <div>Total Events</div>
                     </div>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
                         <div style="font-size: 2em; font-weight: bold; color: #667eea;">${report.summary.totalTicketsSold}</div>
                         <div>Tickets Sold</div>
                     </div>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
-                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${report.summary.averageTicketsPerEvent}</div>
-                        <div>Avg per Event</div>
+                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${report.summary.ticketedEventsCount}</div>
+                        <div>Ticketed Events</div>
                     </div>
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2em; font-weight: bold; color: #667eea;">${report.summary.averageTicketsPerEvent}</div>
+                        <div>Avg per Ticketed Event</div>
+                    </div>
+                </div>
+                
+                <div style="background: #e3f2fd; border: 1px solid #bbdefb; padding: 15px; border-radius: 8px; margin-bottom: 30px; font-size: 0.9em;">
+                    <strong>Note:</strong> Average calculated only for ticketed events (${report.summary.ticketedEventsCount} events). 
+                    Excludes ${report.summary.freeEventsCount} free/RSVP-only events.
                 </div>
                 
                 ${urgentEvents.length > 0 ? `
