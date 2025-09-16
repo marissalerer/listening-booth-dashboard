@@ -690,7 +690,7 @@ async function sendTestEmail() {
         throw new Error('Email not configured. Set EMAIL_USER and EMAIL_PASS environment variables.');
     }
     
-    const transporter = nodemailer.createTransporter(emailConfig);
+    const transporter = nodemailer.createTransport(emailConfig);
     
     await transporter.sendMail({
         from: process.env.EMAIL_USER,
