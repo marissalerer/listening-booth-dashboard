@@ -253,7 +253,8 @@ class FinalTicketManager {
                     isPaid: event.isPaid,
                     isFree: event.isFree,
                     isRSVPOnly: event.isRSVPOnly,
-                    eventId: event.id
+                    eventId: event.id,
+                    slug: event.slug
                 })),
                 generatedAt: data.generatedAt
             };

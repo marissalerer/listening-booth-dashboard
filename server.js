@@ -354,6 +354,22 @@ app.get('/', (req, res) => {
             font-size: 0.9em;
         }
         
+        .event-url {
+            margin-bottom: 12px;
+        }
+        
+        .event-url a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.85em;
+            transition: color 0.3s ease;
+        }
+        
+        .event-url a:hover {
+            color: #5a67d8;
+            text-decoration: underline;
+        }
+        
         .event-sales {
             display: flex;
             justify-content: space-between;
@@ -647,6 +663,9 @@ app.get('/', (req, res) => {
                     ticketInfo = event.ticketsSold + ' tickets';
                 }
                 
+                // Construct event URL from slug
+                const eventUrl = event.slug ? 'https://listeningbooth.com/events/' + event.slug : '#';
+                
                 return '<div class="event-card">' +
                         '<div class="event-header">' +
                             '<span class="event-type" style="background: ' + typeColor + '">' + event.eventType + '</span>' +
@@ -655,6 +674,7 @@ app.get('/', (req, res) => {
                         '<div class="event-title">' + event.title + '</div>' +
                         '<div class="event-date">' + event.date + '</div>' +
                         '<div class="event-venue">' + event.venue + '</div>' +
+                        '<div class="event-url"><a href="' + eventUrl + '" target="_blank" rel="noopener">View Event Details</a></div>' +
                         '<div class="event-sales">' +
                             '<span class="tickets-sold ' + statusClass + '">' + ticketInfo + '</span>' +
                             eventBadge +
