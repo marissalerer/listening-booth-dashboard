@@ -580,6 +580,39 @@ class FinalTicketManager {
                 </div>
             `;
         }).join('');
+
+        // Generate the plain text events list for sidebar
+        const allEventsTextHTML = report.events.map(event => {
+            const eventUrl = event.slug ? 
+                `https://listeningbooth.com/events/${event.slug}` : 
+                'URL not available';
+            
+            return `<div class="event-text-item">
+                <div class="event-text-date">${event.date}</div>
+                <div class="event-text-title">${event.title}</div>
+                <div class="event-text-url"><a href="${eventUrl}" target="_blank" rel="noopener">${eventUrl}</a></div>
+            </div>`;
+        }).join('');
+
+        // Generate top selling events for sidebar
+        const topSellingHTML = report.summary.topSellingEvents && report.summary.topSellingEvents.length > 0 ? 
+            report.summary.topSellingEvents.map(event => 
+                `<li class="sidebar-item">
+                    <span class="item-title">${event.title}</span>
+                    <span class="item-count">${event.tickets}</span>
+                </li>`
+            ).join('') : 
+            '<li class="sidebar-item"><span class="item-title">No sales yet</span></li>';
+
+        // Generate this week events for sidebar
+        const thisWeekHTML = report.summary.thisWeekEvents && report.summary.thisWeekEvents.length > 0 ? 
+            report.summary.thisWeekEvents.map(event => 
+                `<li class="sidebar-item">
+                    <span class="item-title">${event.title}</span>
+                    <span class="item-count">${event.daysFromNow}d</span>
+                </li>`
+            ).join('') : 
+            '<li class="sidebar-item"><span class="item-title">No events this week</span></li>';
         
         return `
 <!DOCTYPE html>
@@ -645,50 +678,82 @@ class FinalTicketManager {
             color: #6c757d;
             font-size: 0.9em;
         }
+        .sections {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .events-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .section-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            font-size: 1.2em;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .top-events, .this-week, .all-events-text {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
         .events-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 25px;
+            gap: 20px;
+            padding: 20px;
         }
         .event-card {
-            background: white;
             border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
         }
         .event-card:hover {
-            transform: translateY(-5px);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
         }
         .event-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 15px;
+            align-items: center;
+            margin-bottom: 12px;
         }
         .event-type {
             color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
             font-weight: 600;
         }
         .days-away {
             background: #f3f4f6;
             color: #374151;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 0.85em;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
             font-weight: 600;
         }
         .event-title {
-            font-size: 1.4em;
+            font-size: 1.2em;
+            font-weight: 600;
             color: #333;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
         .event-date {
             color: #666;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            font-size: 0.9em;
         }
         .event-summary {
             color: #555;
@@ -703,25 +768,97 @@ class FinalTicketManager {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 15px;
+            margin-top: 12px;
         }
         .tickets-sold {
-            padding: 8px 15px;
-            border-radius: 20px;
+            padding: 6px 12px;
+            border-radius: 15px;
             color: white;
             font-weight: 600;
-            font-size: 0.9em;
+            font-size: 0.85em;
         }
         .status-high { background: #10b981; }
         .status-medium { background: #f59e0b; }
         .status-low { background: #6b7280; }
         .status-urgent { background: #ef4444; }
         .paid-badge, .free-badge, .rsvp-badge {
-            font-size: 0.8em;
-            padding: 4px 8px;
-            border-radius: 10px;
+            font-size: 0.75em;
+            padding: 3px 6px;
+            border-radius: 8px;
             background: #f3f4f6;
             color: #374151;
+        }
+        .sidebar-list {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .sidebar-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-item:last-child {
+            border-bottom: none;
+        }
+        .item-title {
+            font-weight: 500;
+            color: #333;
+        }
+        .item-count {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .all-events-text {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .events-text-list {
+            padding: 15px 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .event-text-item {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .event-text-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .event-text-date {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .event-text-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            line-height: 1.3;
+        }
+        .event-text-url {
+            font-size: 0.8em;
+        }
+        .event-text-url a {
+            color: #667eea;
+            text-decoration: none;
+            word-break: break-all;
+            line-height: 1.3;
+        }
+        .event-text-url a:hover {
+            color: #5a67d8;
+            text-decoration: underline;
         }
         .footer {
             text-align: center;
@@ -729,6 +866,25 @@ class FinalTicketManager {
             color: #666;
             border-top: 1px solid #e5e7eb;
             padding-top: 20px;
+        }
+        @media (max-width: 1200px) {
+            .sections {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                flex-direction: row;
+            }
+        }
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .sidebar {
+                flex-direction: column;
+            }
+            .venue-name {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
@@ -764,8 +920,36 @@ class FinalTicketManager {
                 Excludes ${report.summary.freeEventsCount} free/RSVP-only events like open mics and workshops.
             </div>
             
-            <div class="events-grid">
-                ${eventsHTML}
+            <div class="sections">
+                <div class="events-section">
+                    <div class="section-header">All Upcoming Events</div>
+                    <div class="events-grid">
+                        ${eventsHTML}
+                    </div>
+                </div>
+                
+                <div class="sidebar">
+                    <div class="top-events">
+                        <div class="section-header">Top Selling</div>
+                        <ul class="sidebar-list">
+                            ${topSellingHTML}
+                        </ul>
+                    </div>
+                    
+                    <div class="all-events-text">
+                        <div class="section-header">All Upcoming Events</div>
+                        <div class="events-text-list">
+                            ${allEventsTextHTML}
+                        </div>
+                    </div>
+                    
+                    <div class="this-week">
+                        <div class="section-header">This Week</div>
+                        <ul class="sidebar-list">
+                            ${thisWeekHTML}
+                        </ul>
+                    </div>
+                </div>
             </div>
             
             <div class="footer">
