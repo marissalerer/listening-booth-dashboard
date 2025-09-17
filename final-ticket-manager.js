@@ -1,4 +1,4 @@
-// final-ticket-manager.js - Corrected version with simple list function
+// final-ticket-manager.js - Complete version with ticketed events list
 require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
@@ -123,6 +123,9 @@ class FinalTicketManager {
                 const isFreeEvent = freeTickets.length === ticketsSold && ticketsSold > 0;
                 const isRSVPOnly = ticketsSold === 0 && this.isRSVPEvent(event.title);
                 
+                // Get event description/summary - try multiple fields
+                const eventSummary = this.getEventSummary(event);
+                
                 eventsWithTickets.push({
                     ...event,
                     ticketsSold,
@@ -134,7 +137,8 @@ class FinalTicketManager {
                     venue: event.location?.name || 'The Listening Booth',
                     isPaid: isPaidEvent,
                     isFree: isFreeEvent,
-                    isRSVPOnly: isRSVPOnly
+                    isRSVPOnly: isRSVPOnly,
+                    summary: eventSummary
                 });
                 
                 if (i < upcomingEvents.length - 1) {
@@ -155,6 +159,32 @@ class FinalTicketManager {
         }
     }
 
+    // Extract event summary/description
+    getEventSummary(event) {
+        // Try different fields that might contain the description
+        const description = event.about || 
+                          event.description || 
+                          event.summary || 
+                          event.details ||
+                          event.eventDescription ||
+                          '';
+        
+        if (!description) return '';
+        
+        // Clean up and truncate the description
+        let cleanDescription = description
+            .replace(/\n/g, ' ')  // Replace line breaks with spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
+        
+        // Truncate to reasonable length for console output
+        if (cleanDescription.length > 120) {
+            cleanDescription = cleanDescription.substring(0, 120) + '...';
+        }
+        
+        return cleanDescription;
+    }
+
     categorizeEvent(title) {
         const titleLower = title.toLowerCase();
         
@@ -171,6 +201,107 @@ class FinalTicketManager {
         return titleLower.includes('open mic') || 
                titleLower.includes('jam') || 
                titleLower.includes('lessons');
+    }
+
+    // Get list of only ticketed events
+    async getTicketedEventsList(limit = 50) {
+        try {
+            const data = await this.getUpcomingEventsWithTickets(limit);
+            
+            if (!data.success) {
+                throw new Error(data.error);
+            }
+            
+            // Filter for only events with tickets sold
+            const ticketedEvents = data.events.filter(event => event.ticketsSold > 0);
+            
+            return {
+                success: true,
+                events: ticketedEvents,
+                total: ticketedEvents.length
+            };
+            
+        } catch (error) {
+            console.error('Error fetching ticketed events:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // Print ticketed events in format: {{date}} {{event}} ({{ticket count}})
+    async printTicketedEventsList(limit = 50) {
+        const result = await this.getTicketedEventsList(limit);
+        
+        if (!result.success) {
+            console.log('Error fetching ticketed events:', result.error);
+            return;
+        }
+        
+        if (result.events.length === 0) {
+            console.log('No ticketed events found.');
+            return;
+        }
+        
+        console.log('TICKETED EVENTS');
+        console.log('===============');
+        
+        result.events.forEach(event => {
+            // Format the date - try to get just the date part
+            let dateStr;
+            if (event.scheduling?.formatted) {
+                // Extract just the date part from formatted string
+                // "September 16, 2025, 6:30 – 8:00 PM" -> "September 16, 2025"
+                dateStr = event.scheduling.formatted.split(',').slice(0, 2).join(',');
+            } else if (event.scheduling?.config?.startDate) {
+                const eventDate = new Date(event.scheduling.config.startDate);
+                dateStr = eventDate.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+            } else {
+                dateStr = 'Date TBD';
+            }
+            
+            console.log(`${dateStr} ${event.title} (${event.ticketsSold})`);
+        });
+        
+        console.log(`\nTotal ticketed events: ${result.events.length}`);
+    }
+
+    // Print ticketed events with shorter date format
+    async printTicketedEventsListShort(limit = 50) {
+        const result = await this.getTicketedEventsList(limit);
+        
+        if (!result.success) {
+            console.log('Error fetching ticketed events:', result.error);
+            return;
+        }
+        
+        if (result.events.length === 0) {
+            console.log('No ticketed events found.');
+            return;
+        }
+        
+        console.log('TICKETED EVENTS');
+        console.log('===============');
+        
+        result.events.forEach(event => {
+            // Short date format: "Sep 16" or "9/16"
+            let dateStr;
+            if (event.scheduling?.config?.startDate) {
+                const eventDate = new Date(event.scheduling.config.startDate);
+                dateStr = eventDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+            } else {
+                dateStr = 'TBD';
+            }
+            
+            console.log(`${dateStr} ${event.title} (${event.ticketsSold})`);
+        });
+        
+        console.log(`\nTotal: ${result.events.length}`);
     }
 
     async generateTicketReport(limit = 20) {
@@ -206,12 +337,6 @@ class FinalTicketManager {
                 urgent: data.events.filter(e => e.salesStatus === 'urgent').length
             };
             
-            // Venue breakdown
-            const venueBreakdown = {};
-            data.events.forEach(event => {
-                venueBreakdown[event.venue] = (venueBreakdown[event.venue] || 0) + 1;
-            });
-            
             const report = {
                 venue: {
                     name: "The Listening Booth",
@@ -222,12 +347,11 @@ class FinalTicketManager {
                     totalTicketsSold,
                     totalPaidTickets,
                     totalFreeTickets,
-                    averageTicketsPerEvent, // Now only for ticketed events
+                    averageTicketsPerEvent,
                     ticketedEventsCount: ticketedEvents.length,
                     freeEventsCount: data.events.filter(e => e.isFree || e.isRSVPOnly).length,
                     eventTypes,
                     salesBreakdown,
-                    venueBreakdown,
                     topSellingEvents: data.events
                         .filter(e => e.ticketsSold > 0)
                         .sort((a, b) => b.ticketsSold - a.ticketsSold)
@@ -254,7 +378,8 @@ class FinalTicketManager {
                     isFree: event.isFree,
                     isRSVPOnly: event.isRSVPOnly,
                     eventId: event.id,
-                    slug: event.slug
+                    slug: event.slug,
+                    summary: event.summary
                 })),
                 generatedAt: data.generatedAt
             };
@@ -265,36 +390,6 @@ class FinalTicketManager {
             console.error('Error generating ticket report:', error.message);
             return { success: false, error: error.message };
         }
-    }
-
-    // Simple text list for copy/paste
-    async printSimpleList(limit = 30) {
-        const reportData = await this.generateTicketReport(limit);
-        
-        if (!reportData.success) {
-            console.log('Error generating list:', reportData.error);
-            return;
-        }
-        
-        const report = reportData.report;
-        
-        console.log('THE LISTENING BOOTH - UPCOMING EVENTS');
-        console.log('=====================================');
-        console.log('');
-        
-        report.events.forEach((event, index) => {
-            const eventUrl = event.slug ? `https://listeningbooth.com/events/${event.slug}` : '';
-            console.log(`${index + 1}. ${event.title}`);
-            console.log(`   ${event.date}`);
-            console.log(`   ${event.venue}`);
-            if (eventUrl) {
-                console.log(`   ${eventUrl}`);
-            }
-            console.log('');
-        });
-        
-        console.log(`Total: ${report.events.length} upcoming events`);
-        console.log(`Generated: ${new Date().toLocaleString()}`);
     }
 
     async printTicketReport(limit = 20) {
@@ -319,9 +414,9 @@ class FinalTicketManager {
         // Top selling events
         if (report.summary.topSellingEvents.length > 0) {
             console.log('TOP SELLING EVENTS:');
-            report.summary.topSellingEvents.forEach((event, index) => {
+            report.summary.topSellingEvents.forEach((event) => {
                 const typeIcon = event.type === 'paid' ? 'PAID' : event.type === 'free' ? 'FREE' : '';
-                console.log(`   ${index + 1}. ${event.title} - ${event.tickets} tickets ${typeIcon}`);
+                console.log(`${event.title} - ${event.tickets} tickets ${typeIcon}`);
             });
             console.log('');
         }
@@ -336,7 +431,7 @@ class FinalTicketManager {
                     'low': 'LOW',
                     'urgent': 'URGENT'
                 }[event.salesStatus];
-                console.log(`   ${statusIcon} ${event.title} - ${event.ticketsSold} tickets (${event.daysFromNow} days)`);
+                console.log(`${statusIcon} ${event.title} - ${event.ticketsSold} tickets (${event.daysFromNow} days)`);
             });
             console.log('');
         }
@@ -344,7 +439,7 @@ class FinalTicketManager {
         // Event breakdown
         console.log('Event Types:');
         Object.entries(report.summary.eventTypes).forEach(([type, count]) => {
-            console.log(`   ${type}: ${count}`);
+            console.log(`${type}: ${count}`);
         });
         console.log('');
         
@@ -352,16 +447,10 @@ class FinalTicketManager {
         console.log(`Free/RSVP Events: ${report.summary.freeEventsCount}`);
         console.log('');
         
-        // Venues
-        console.log('Venues:');
-        Object.entries(report.summary.venueBreakdown).forEach(([venue, count]) => {
-            console.log(`   ${venue}: ${count} events`);
-        });
-        console.log('');
-        
-        // Individual events
+        // Individual events - CLEAN FORMAT
         console.log('ALL UPCOMING EVENTS:');
-        report.events.forEach((event, index) => {
+        console.log('=====================');
+        report.events.forEach((event) => {
             const statusIcon = {
                 'high': 'HIGH',
                 'medium': 'MED', 
@@ -388,18 +477,24 @@ class FinalTicketManager {
                 ticketInfo = `${event.ticketsSold} tickets`;
             }
             
-            console.log(`${index + 1}. ${event.title}`);
-            console.log(`   ${event.date} (${event.daysFromNow} days away)`);
-            console.log(`   ${statusIcon} ${ticketInfo} | ${typeIcon}`);
-            console.log(`   ${event.venue}`);
-            console.log('');
+            // Clean output format - no numbering, minimal spacing
+            console.log(`${event.title}`);
+            console.log(`${event.date} (${event.daysFromNow} days away)`);
+            console.log(`${statusIcon} ${ticketInfo} | ${typeIcon}`);
+            
+            // Add event summary if available
+            if (event.summary) {
+                console.log(`${event.summary}`);
+            }
+            
+            console.log(''); // Single blank line between events
         });
         
         // Urgent events warning
         if (report.summary.urgentEvents.length > 0) {
             console.log(`URGENT: ${report.summary.urgentEvents.length} events this week with no tickets sold:`);
             report.summary.urgentEvents.forEach(event => {
-                console.log(`   • ${event.title} (${event.daysFromNow} days away)`);
+                console.log(`• ${event.title} (${event.daysFromNow} days away)`);
             });
             console.log('');
         }
@@ -471,7 +566,7 @@ class FinalTicketManager {
                     </div>
                     <h3 class="event-title">${event.title}</h3>
                     <div class="event-date">${event.date}</div>
-                    <div class="event-venue">${event.venue}</div>
+                    ${event.summary ? `<div class="event-summary">${event.summary}</div>` : ''}
                     <div class="event-sales">
                         <span class="tickets-sold ${statusClass}">${ticketInfo}</span>
                         ${ticketBadge}
@@ -585,9 +680,18 @@ class FinalTicketManager {
             color: #333;
             margin-bottom: 12px;
         }
-        .event-date, .event-venue {
+        .event-date {
             color: #666;
             margin-bottom: 8px;
+        }
+        .event-summary {
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.4;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
         }
         .event-sales {
             display: flex;
@@ -674,26 +778,33 @@ async function main() {
     try {
         const manager = new FinalTicketManager();
         const command = process.argv[2] || 'report';
-        const limit = parseInt(process.argv[3]) || (command === 'list' ? 30 : 20);
+        const limit = parseInt(process.argv[3]) || 20;
         
         switch (command.toLowerCase()) {
             case 'report':
                 await manager.printTicketReport(limit);
                 break;
                 
-            case 'list':
-                await manager.printSimpleList(limit);
-                break;
-                
             case 'html':
                 await manager.saveHTMLReport();
                 break;
                 
+            case 'list':
+            case 'ticketed':
+                await manager.printTicketedEventsList(limit);
+                break;
+                
+            case 'list-short':
+            case 'ticketed-short':
+                await manager.printTicketedEventsListShort(limit);
+                break;
+                
             default:
                 console.log('Available commands:');
-                console.log('  report [number] - Show comprehensive ticket sales report');
-                console.log('  list [number]   - Show simple text list for copy/paste (default: 30)');
-                console.log('  html           - Generate HTML report for team sharing');
+                console.log('  report [number]       - Show comprehensive ticket sales report');
+                console.log('  html                  - Generate HTML report for team sharing');
+                console.log('  list [number]         - List ticketed events only ({{date}} {{event}} ({{count}}))');
+                console.log('  list-short [number]   - List ticketed events with short dates');
         }
         
     } catch (error) {
