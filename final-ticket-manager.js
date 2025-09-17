@@ -470,14 +470,17 @@ class FinalTicketManager {
             if (event.isRSVPOnly) {
                 ticketInfo = 'RSVP only';
             } else if (event.isPaid) {
-                ticketInfo = `${event.paidTickets} paid`;
+                // Change "paid" to "ticket/tickets"
+                const ticketWord = event.paidTickets === 1 ? 'ticket' : 'tickets';
+                ticketInfo = `${event.paidTickets} ${ticketWord}`;
             } else if (event.isFree) {
                 ticketInfo = `${event.freeTickets} free`;
             } else {
-                ticketInfo = `${event.ticketsSold} tickets`;
+                const ticketWord = event.ticketsSold === 1 ? 'ticket' : 'tickets';
+                ticketInfo = `${event.ticketsSold} ${ticketWord}`;
             }
             
-            // Clean output format - no numbering, minimal spacing
+            // Clean output format - no numbering, minimal spacing, no location
             console.log(`${event.title}`);
             console.log(`${event.date} (${event.daysFromNow} days away)`);
             console.log(`${statusIcon} ${ticketInfo} | ${typeIcon}`);
@@ -549,13 +552,16 @@ class FinalTicketManager {
                 ticketInfo = 'RSVP only';
                 ticketBadge = '<span class="rsvp-badge">RSVP</span>';
             } else if (event.isPaid) {
-                ticketInfo = `${event.paidTickets} paid`;
+                // Change "paid" to "ticket/tickets"
+                const ticketWord = event.paidTickets === 1 ? 'ticket' : 'tickets';
+                ticketInfo = `${event.paidTickets} ${ticketWord}`;
                 ticketBadge = '<span class="paid-badge">PAID</span>';
             } else if (event.isFree) {
                 ticketInfo = `${event.freeTickets} free`;
                 ticketBadge = '<span class="free-badge">FREE</span>';
             } else {
-                ticketInfo = `${event.ticketsSold} tickets`;
+                const ticketWord = event.ticketsSold === 1 ? 'ticket' : 'tickets';
+                ticketInfo = `${event.ticketsSold} ${ticketWord}`;
             }
             
             return `
