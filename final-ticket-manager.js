@@ -1,4 +1,4 @@
-// final-ticket-manager.js - Updated to exclude free events from average calculation
+// final-ticket-manager.js - Corrected version with simple list function
 require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
@@ -265,6 +265,36 @@ class FinalTicketManager {
             console.error('Error generating ticket report:', error.message);
             return { success: false, error: error.message };
         }
+    }
+
+    // Simple text list for copy/paste
+    async printSimpleList(limit = 30) {
+        const reportData = await this.generateTicketReport(limit);
+        
+        if (!reportData.success) {
+            console.log('Error generating list:', reportData.error);
+            return;
+        }
+        
+        const report = reportData.report;
+        
+        console.log('THE LISTENING BOOTH - UPCOMING EVENTS');
+        console.log('=====================================');
+        console.log('');
+        
+        report.events.forEach((event, index) => {
+            const eventUrl = event.slug ? `https://listeningbooth.com/events/${event.slug}` : '';
+            console.log(`${index + 1}. ${event.title}`);
+            console.log(`   ${event.date}`);
+            console.log(`   ${event.venue}`);
+            if (eventUrl) {
+                console.log(`   ${eventUrl}`);
+            }
+            console.log('');
+        });
+        
+        console.log(`Total: ${report.events.length} upcoming events`);
+        console.log(`Generated: ${new Date().toLocaleString()}`);
     }
 
     async printTicketReport(limit = 20) {
@@ -644,11 +674,15 @@ async function main() {
     try {
         const manager = new FinalTicketManager();
         const command = process.argv[2] || 'report';
-        const limit = parseInt(process.argv[3]) || 20;
+        const limit = parseInt(process.argv[3]) || (command === 'list' ? 30 : 20);
         
         switch (command.toLowerCase()) {
             case 'report':
                 await manager.printTicketReport(limit);
+                break;
+                
+            case 'list':
+                await manager.printSimpleList(limit);
                 break;
                 
             case 'html':
@@ -658,6 +692,7 @@ async function main() {
             default:
                 console.log('Available commands:');
                 console.log('  report [number] - Show comprehensive ticket sales report');
+                console.log('  list [number]   - Show simple text list for copy/paste (default: 30)');
                 console.log('  html           - Generate HTML report for team sharing');
         }
         

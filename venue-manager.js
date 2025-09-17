@@ -262,6 +262,105 @@ class VenueEventsManager {
         }
     }
 
+    // Helper function to extract event summary
+    extractSummary(event, maxLength = 80) {
+        const description = event.about || 
+                          event.description || 
+                          event.summary || 
+                          event.details ||
+                          '';
+        
+        if (!description) return '';
+        
+        // Clean up and truncate the description
+        let cleanDescription = description
+            .replace(/\n/g, ' ')  // Replace line breaks with spaces
+            .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+            .trim();
+        
+        // Truncate to specified length
+        if (cleanDescription.length > maxLength) {
+            cleanDescription = cleanDescription.substring(0, maxLength) + '...';
+        }
+        
+        return cleanDescription;
+    }
+
+    // Flexible list events function with options
+    async listEvents(type = 'upcoming', options = {}) {
+        // Options can include: includeSummary (true/false), summaryLength (number)
+        const { 
+            includeSummary = false, 
+            summaryLength = 80 
+        } = options;
+        
+        let eventsData;
+        
+        switch (type) {
+            case 'upcoming':
+                eventsData = await this.getUpcomingEvents();
+                console.log('UPCOMING EVENTS');
+                break;
+            case 'past':
+                eventsData = await this.getPastEvents();
+                console.log('PAST EVENTS');
+                break;
+            default:
+                eventsData = await this.getAllEvents();
+                console.log('ALL EVENTS');
+        }
+        
+        console.log('================');
+        
+        if (!eventsData.success) {
+            console.log('❌ Error fetching events:', eventsData.error);
+            return;
+        }
+        
+        if (eventsData.events.length === 0) {
+            console.log('No events found.');
+            return;
+        }
+        
+        eventsData.events.forEach((event) => {
+            // Use the formatted date from API or fall back to parsing
+            const date = event.scheduling?.formatted || 
+                        (event.scheduling?.config?.startDate ? 
+                         new Date(event.scheduling.config.startDate).toLocaleString() : 'Date TBD');
+            
+            // Generate event URL from slug if available
+            const eventUrl = event.slug ? 
+                `https://listeningbooth.com/events/${event.slug}` : 
+                (event.eventPageUrl || 'URL not available');
+            
+            // Always show title, date, URL
+            console.log(`${event.title}`);
+            console.log(`${date}`);
+            console.log(`${eventUrl}`);
+            
+            // Optionally show summary
+            if (includeSummary) {
+                const summary = this.extractSummary(event, summaryLength);
+                if (summary) {
+                    console.log(`${summary}`);
+                }
+            }
+            
+            console.log(''); // Single blank line between events
+        });
+        
+        console.log(`Total: ${eventsData.events.length} events`);
+    }
+
+    // Convenience methods for different formats
+    async listEventsBasic(type = 'upcoming') {
+        return await this.listEvents(type, { includeSummary: false });
+    }
+
+    async listEventsWithSummary(type = 'upcoming', summaryLength = 80) {
+        return await this.listEvents(type, { includeSummary: true, summaryLength });
+    }
+
     // Print a nice summary
     async printSummary() {
         const dashboard = await this.getDashboard();
@@ -301,62 +400,13 @@ class VenueEventsManager {
         }
         
         console.log('\n💡 Available commands:');
-        console.log('   node venue-manager.js summary    - Show this summary');
-        console.log('   node venue-manager.js upcoming   - List upcoming events');
-        console.log('   node venue-manager.js past      - List past events');
-        console.log('   node venue-manager.js export    - Export all events to JSON');
-        console.log('   node venue-manager.js csv       - Export all events to CSV');
-    }
-
-    // List events in a nice format
-    async listEvents(type = 'all') {
-        let eventsData;
-        
-        switch (type) {
-            case 'upcoming':
-                eventsData = await this.getUpcomingEvents();
-                console.log('\n🔮 UPCOMING EVENTS');
-                break;
-            case 'past':
-                eventsData = await this.getPastEvents();
-                console.log('\n📜 PAST EVENTS');
-                break;
-            default:
-                eventsData = await this.getAllEvents();
-                console.log('\n📅 ALL EVENTS');
-        }
-        
-        console.log('================');
-        
-        if (!eventsData.success) {
-            console.log('❌ Error fetching events:', eventsData.error);
-            return;
-        }
-        
-        if (eventsData.events.length === 0) {
-            console.log('No events found.');
-            return;
-        }
-        
-        eventsData.events.forEach((event, index) => {
-            // Use the formatted date from API or fall back to parsing
-            const date = event.scheduling?.formatted || 
-                        (event.scheduling?.config?.startDate ? 
-                         new Date(event.scheduling.config.startDate).toLocaleString() : 'Date TBD');
-            const location = event.location?.name || event.location?.address || 'Location TBD';
-            
-            console.log(`\n${index + 1}. ${event.title}`);
-            console.log(`   🗓️  ${date}`);
-            console.log(`   📍 ${location}`);
-            console.log(`   🆔 ${event.id}`);
-            if (event.about) {
-                console.log(`   📝 ${event.about.substring(0, 100)}...`);
-            } else if (event.description) {
-                console.log(`   📝 ${event.description.substring(0, 100)}...`);
-            }
-        });
-        
-        console.log(`\n📊 Total: ${eventsData.events.length} events`);
+        console.log('   node venue-manager.js summary         - Show this summary');
+        console.log('   node venue-manager.js upcoming        - List upcoming events (basic)');
+        console.log('   node venue-manager.js upcoming-full   - List upcoming events with summaries');
+        console.log('   node venue-manager.js past            - List past events (basic)');
+        console.log('   node venue-manager.js all             - List all events (basic)');
+        console.log('   node venue-manager.js export          - Export all events to JSON');
+        console.log('   node venue-manager.js csv             - Export all events to CSV');
     }
 }
 
@@ -373,15 +423,36 @@ async function main() {
                 break;
                 
             case 'upcoming':
-                await manager.listEvents('upcoming');
+                await manager.listEventsBasic('upcoming');
+                break;
+                
+            case 'upcoming-full':
+                await manager.listEventsWithSummary('upcoming');
                 break;
                 
             case 'past':
-                await manager.listEvents('past');
+                await manager.listEventsBasic('past');
+                break;
+                
+            case 'past-full':
+                await manager.listEventsWithSummary('past');
                 break;
                 
             case 'all':
-                await manager.listEvents('all');
+                await manager.listEventsBasic('all');
+                break;
+                
+            case 'all-full':
+                await manager.listEventsWithSummary('all');
+                break;
+                
+            // Custom options
+            case 'upcoming-short':
+                await manager.listEvents('upcoming', { includeSummary: true, summaryLength: 50 });
+                break;
+                
+            case 'upcoming-long':
+                await manager.listEvents('upcoming', { includeSummary: true, summaryLength: 120 });
                 break;
                 
             case 'export':
@@ -394,13 +465,23 @@ async function main() {
             case 'csv':
                 const csvResult = await manager.exportEvents('csv');
                 if (csvResult.success) {
-                    console.log(`✅ Exported ${csvResult.count} events to ${csvResult.filename}`);
+                    console.log(`✅ Exported ${csvResult.count} events to ${result.filename}`);
                 }
                 break;
                 
             default:
-                console.log('Unknown command. Available commands:');
-                console.log('  summary, upcoming, past, all, export, csv');
+                console.log('Available commands:');
+                console.log('  summary         - Show dashboard summary');
+                console.log('  upcoming        - List upcoming events (basic)');
+                console.log('  upcoming-full   - List upcoming events with summaries');
+                console.log('  upcoming-short  - List upcoming events with short summaries');
+                console.log('  upcoming-long   - List upcoming events with long summaries'); 
+                console.log('  past            - List past events (basic)');
+                console.log('  past-full       - List past events with summaries');
+                console.log('  all             - List all events (basic)');
+                console.log('  all-full        - List all events with summaries');
+                console.log('  export          - Export all events to JSON');
+                console.log('  csv             - Export all events to CSV');
         }
         
     } catch (error) {
