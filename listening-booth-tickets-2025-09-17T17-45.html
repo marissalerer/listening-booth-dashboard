@@ -1,0 +1,736 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Listening Booth - Ticket Sales Report</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .venue-name {
+            font-size: 3em;
+            margin: 0;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .summary-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .note {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .sections {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .events-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .section-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            font-size: 1.2em;
+        }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .top-events, .this-week, .all-events-text {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .events-grid {
+            display: grid;
+            gap: 20px;
+            padding: 20px;
+        }
+        .event-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        .event-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .event-type {
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .days-away {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .event-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .event-date {
+            color: #666;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+        }
+        .event-summary {
+            color: #555;
+            font-size: 0.9em;
+            line-height: 1.4;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .event-sales {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+        }
+        .tickets-sold {
+            padding: 6px 12px;
+            border-radius: 15px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85em;
+        }
+        .status-high { background: #10b981; }
+        .status-medium { background: #f59e0b; }
+        .status-low { background: #6b7280; }
+        .status-urgent { background: #ef4444; }
+        .paid-badge, .free-badge, .rsvp-badge {
+            font-size: 0.75em;
+            padding: 3px 6px;
+            border-radius: 8px;
+            background: #f3f4f6;
+            color: #374151;
+        }
+        .sidebar-list {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+        .sidebar-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-item:last-child {
+            border-bottom: none;
+        }
+        .item-title {
+            font-weight: 500;
+            color: #333;
+        }
+        .item-count {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8em;
+            font-weight: 600;
+        }
+        .all-events-text {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .events-text-list {
+            padding: 15px 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .event-text-item {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .event-text-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .event-text-date {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .event-text-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+            line-height: 1.3;
+        }
+        .event-text-url {
+            font-size: 0.8em;
+        }
+        .event-text-url a {
+            color: #667eea;
+            text-decoration: none;
+            word-break: break-all;
+            line-height: 1.3;
+        }
+        .event-text-url a:hover {
+            color: #5a67d8;
+            text-decoration: underline;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #666;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+        }
+        @media (max-width: 1200px) {
+            .sections {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                flex-direction: row;
+            }
+        }
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .sidebar {
+                flex-direction: column;
+            }
+            .venue-name {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="venue-name">The Listening Booth</h1>
+            <p>Ticket Sales Report | Lewes, Delaware</p>
+        </div>
+        
+        <div class="content">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-number">20</div>
+                    <div>Total Events</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-number">141</div>
+                    <div>Tickets Sold</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-number">7</div>
+                    <div>Ticketed Events</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-number">20.1</div>
+                    <div>Avg per Ticketed Event</div>
+                </div>
+            </div>
+            
+            <div class="note">
+                <strong>Note:</strong> Average calculated only for ticketed events (7 events). 
+                Excludes 10 free/RSVP-only events like open mics and workshops.
+            </div>
+            
+            <div class="sections">
+                <div class="events-section">
+                    <div class="section-header">All Upcoming Events</div>
+                    <div class="events-grid">
+                        
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #f59e0b">Open Mic</span>
+                        <span class="days-away">1 days</span>
+                    </div>
+                    <h3 class="event-title">Acoustic Open Mic Night</h3>
+                    <div class="event-date">September 17, 2025, 6:30 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-urgent">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #8b5cf6">Workshop</span>
+                        <span class="days-away">2 days</span>
+                    </div>
+                    <h3 class="event-title">Group Voice Lessons</h3>
+                    <div class="event-date">September 18, 2025, 4:30 – 6:00 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-urgent">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">4 days</span>
+                    </div>
+                    <h3 class="event-title">Sonia Disappear Fear with Joe Barbella</h3>
+                    <div class="event-date">September 20, 2025, 7:00 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-high">31 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">5 days</span>
+                    </div>
+                    <h3 class="event-title">Willy Porter with The Fritz Gambit</h3>
+                    <div class="event-date">September 21, 2025, 6:00 – 8:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-medium">21 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #10b981">Jam Session</span>
+                        <span class="days-away">5 days</span>
+                    </div>
+                    <h3 class="event-title">Sunday Social Jam Night</h3>
+                    <div class="event-date">September 21, 2025 at 8:00 PM – September 22, 2025 at 12:00 AM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-urgent">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #f59e0b">Open Mic</span>
+                        <span class="days-away">8 days</span>
+                    </div>
+                    <h3 class="event-title">Acoustic Open Mic Night</h3>
+                    <div class="event-date">September 24, 2025, 6:30 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #8b5cf6">Workshop</span>
+                        <span class="days-away">9 days</span>
+                    </div>
+                    <h3 class="event-title">Group Voice Lessons</h3>
+                    <div class="event-date">September 25, 2025, 4:30 – 6:00 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #8b5cf6">Workshop</span>
+                        <span class="days-away">9 days</span>
+                    </div>
+                    <h3 class="event-title">The Listening Booth Songwriting Club</h3>
+                    <div class="event-date">September 25, 2025, 6:00 – 8:00 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">0 tickets</span>
+                        
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #ef4444">Fundraiser</span>
+                        <span class="days-away">9 days</span>
+                    </div>
+                    <h3 class="event-title">The Rough & Tumble and The Honey Badgers - Fundraiser for The Delaware Friends of Folk</h3>
+                    <div class="event-date">September 25, 2025, 7:00 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-medium">19 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">10 days</span>
+                    </div>
+                    <h3 class="event-title">Wicked Sycamore</h3>
+                    <div class="event-date">September 26, 2025, 7:00 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">8 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #10b981">Jam Session</span>
+                        <span class="days-away">12 days</span>
+                    </div>
+                    <h3 class="event-title">Sunday Social Jam Night</h3>
+                    <div class="event-date">September 28, 2025 at 8:00 PM – September 29, 2025 at 12:00 AM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #f59e0b">Open Mic</span>
+                        <span class="days-away">15 days</span>
+                    </div>
+                    <h3 class="event-title">Acoustic Open Mic Night</h3>
+                    <div class="event-date">October 1, 2025, 6:30 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #8b5cf6">Workshop</span>
+                        <span class="days-away">16 days</span>
+                    </div>
+                    <h3 class="event-title">Group Voice Lessons</h3>
+                    <div class="event-date">October 2, 2025, 4:30 – 6:00 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">17 days</span>
+                    </div>
+                    <h3 class="event-title">Richard Shindell with Jillian Matundan</h3>
+                    <div class="event-date">October 3, 2025, 7:00 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-high">42 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">18 days</span>
+                    </div>
+                    <h3 class="event-title">The  Fitzkee Brothers Band /The  Jonathan Sloane Trio</h3>
+                    <div class="event-date">October 4, 2025, 7:00 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-medium">14 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">18 days</span>
+                    </div>
+                    <h3 class="event-title">Rock 'N Ukes (Femme Fatale)</h3>
+                    <div class="event-date">October 5, 2025, 1:00 – 3:00 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">0 tickets</span>
+                        
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #667eea">Concert</span>
+                        <span class="days-away">19 days</span>
+                    </div>
+                    <h3 class="event-title">Flamy Grant with Kerry Hallett</h3>
+                    <div class="event-date">October 5, 2025, 6:00 – 8:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">6 tickets</span>
+                        <span class="paid-badge">PAID</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #10b981">Jam Session</span>
+                        <span class="days-away">19 days</span>
+                    </div>
+                    <h3 class="event-title">Sunday Social Jam Night</h3>
+                    <div class="event-date">October 5, 2025 at 8:00 PM – October 6, 2025 at 12:00 AM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #f59e0b">Open Mic</span>
+                        <span class="days-away">22 days</span>
+                    </div>
+                    <h3 class="event-title">Acoustic Open Mic Night</h3>
+                    <div class="event-date">October 8, 2025, 6:30 – 9:30 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">RSVP only</span>
+                        <span class="rsvp-badge">RSVP</span>
+                    </div>
+                </div>
+            
+                <div class="event-card">
+                    <div class="event-header">
+                        <span class="event-type" style="background: #8b5cf6">Workshop</span>
+                        <span class="days-away">23 days</span>
+                    </div>
+                    <h3 class="event-title">The Listening Booth Songwriting Club</h3>
+                    <div class="event-date">October 9, 2025, 6:00 – 8:00 PM</div>
+                    
+                    <div class="event-sales">
+                        <span class="tickets-sold status-low">0 tickets</span>
+                        
+                    </div>
+                </div>
+            
+                    </div>
+                </div>
+                
+                <div class="sidebar">
+                    <div class="top-events">
+                        <div class="section-header">Top Selling</div>
+                        <ul class="sidebar-list">
+                            <li class="sidebar-item">
+                    <span class="item-title">Richard Shindell with Jillian Matundan</span>
+                    <span class="item-count">42</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">Sonia Disappear Fear with Joe Barbella</span>
+                    <span class="item-count">31</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">Willy Porter with The Fritz Gambit</span>
+                    <span class="item-count">21</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">The Rough & Tumble and The Honey Badgers - Fundraiser for The Delaware Friends of Folk</span>
+                    <span class="item-count">19</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">The  Fitzkee Brothers Band /The  Jonathan Sloane Trio</span>
+                    <span class="item-count">14</span>
+                </li>
+                        </ul>
+                    </div>
+                    
+                    <div class="all-events-text">
+                        <div class="section-header">All Upcoming Events</div>
+                        <div class="events-text-list">
+                            <div class="event-text-item">
+                <div class="event-text-date">September 17, 2025, 6:30 – 9:30 PM</div>
+                <div class="event-text-title">Acoustic Open Mic Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/acoustic-open-mic-night-2025-09-17-18-30" target="_blank" rel="noopener">https://listeningbooth.com/events/acoustic-open-mic-night-2025-09-17-18-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 18, 2025, 4:30 – 6:00 PM</div>
+                <div class="event-text-title">Group Voice Lessons</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/group-voice-lessons-2025-09-18-16-30" target="_blank" rel="noopener">https://listeningbooth.com/events/group-voice-lessons-2025-09-18-16-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 20, 2025, 7:00 – 9:30 PM</div>
+                <div class="event-text-title">Sonia Disappear Fear with Joe Barbella</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/sonia-disappear-fear-with-joe-barbella" target="_blank" rel="noopener">https://listeningbooth.com/events/sonia-disappear-fear-with-joe-barbella</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 21, 2025, 6:00 – 8:30 PM</div>
+                <div class="event-text-title">Willy Porter with The Fritz Gambit</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/willy-porter-with-the-fritz-gambit" target="_blank" rel="noopener">https://listeningbooth.com/events/willy-porter-with-the-fritz-gambit</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 21, 2025 at 8:00 PM – September 22, 2025 at 12:00 AM</div>
+                <div class="event-text-title">Sunday Social Jam Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/sunday-social-jam-night-2025-09-21-20-00" target="_blank" rel="noopener">https://listeningbooth.com/events/sunday-social-jam-night-2025-09-21-20-00</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 24, 2025, 6:30 – 9:30 PM</div>
+                <div class="event-text-title">Acoustic Open Mic Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/acoustic-open-mic-night-2025-09-24-18-30" target="_blank" rel="noopener">https://listeningbooth.com/events/acoustic-open-mic-night-2025-09-24-18-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 25, 2025, 4:30 – 6:00 PM</div>
+                <div class="event-text-title">Group Voice Lessons</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/group-voice-lessons-2025-09-25-16-30" target="_blank" rel="noopener">https://listeningbooth.com/events/group-voice-lessons-2025-09-25-16-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 25, 2025, 6:00 – 8:00 PM</div>
+                <div class="event-text-title">The Listening Booth Songwriting Club</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/the-listening-booth-songwriting-club-2025-09-25-18-00" target="_blank" rel="noopener">https://listeningbooth.com/events/the-listening-booth-songwriting-club-2025-09-25-18-00</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 25, 2025, 7:00 – 9:30 PM</div>
+                <div class="event-text-title">The Rough & Tumble and The Honey Badgers - Fundraiser for The Delaware Friends of Folk</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/the-rough-tumble-and-the-honey-badgers-fundraiser-for-the-delaware-friends-of-folk" target="_blank" rel="noopener">https://listeningbooth.com/events/the-rough-tumble-and-the-honey-badgers-fundraiser-for-the-delaware-friends-of-folk</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 26, 2025, 7:00 – 9:30 PM</div>
+                <div class="event-text-title">Wicked Sycamore</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/wicked-sycamore" target="_blank" rel="noopener">https://listeningbooth.com/events/wicked-sycamore</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">September 28, 2025 at 8:00 PM – September 29, 2025 at 12:00 AM</div>
+                <div class="event-text-title">Sunday Social Jam Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/sunday-social-jam-night-2025-09-28-20-00" target="_blank" rel="noopener">https://listeningbooth.com/events/sunday-social-jam-night-2025-09-28-20-00</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 1, 2025, 6:30 – 9:30 PM</div>
+                <div class="event-text-title">Acoustic Open Mic Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/acoustic-open-mic-night-2025-10-01-18-30" target="_blank" rel="noopener">https://listeningbooth.com/events/acoustic-open-mic-night-2025-10-01-18-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 2, 2025, 4:30 – 6:00 PM</div>
+                <div class="event-text-title">Group Voice Lessons</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/group-voice-lessons-2025-10-02-16-30" target="_blank" rel="noopener">https://listeningbooth.com/events/group-voice-lessons-2025-10-02-16-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 3, 2025, 7:00 – 9:30 PM</div>
+                <div class="event-text-title">Richard Shindell with Jillian Matundan</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/richard-shindell-with-jillian-matundan" target="_blank" rel="noopener">https://listeningbooth.com/events/richard-shindell-with-jillian-matundan</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 4, 2025, 7:00 – 9:30 PM</div>
+                <div class="event-text-title">The  Fitzkee Brothers Band /The  Jonathan Sloane Trio</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/the-fitzkee-brothers-band-the-jonathan-sloane-trio" target="_blank" rel="noopener">https://listeningbooth.com/events/the-fitzkee-brothers-band-the-jonathan-sloane-trio</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 5, 2025, 1:00 – 3:00 PM</div>
+                <div class="event-text-title">Rock 'N Ukes (Femme Fatale)</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/rock-n-ukes-femme-fatale" target="_blank" rel="noopener">https://listeningbooth.com/events/rock-n-ukes-femme-fatale</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 5, 2025, 6:00 – 8:30 PM</div>
+                <div class="event-text-title">Flamy Grant with Kerry Hallett</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/flamy-grant-with-kerry-hallett" target="_blank" rel="noopener">https://listeningbooth.com/events/flamy-grant-with-kerry-hallett</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 5, 2025 at 8:00 PM – October 6, 2025 at 12:00 AM</div>
+                <div class="event-text-title">Sunday Social Jam Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/sunday-social-jam-night-2025-10-05-20-00" target="_blank" rel="noopener">https://listeningbooth.com/events/sunday-social-jam-night-2025-10-05-20-00</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 8, 2025, 6:30 – 9:30 PM</div>
+                <div class="event-text-title">Acoustic Open Mic Night</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/acoustic-open-mic-night-2025-10-08-18-30" target="_blank" rel="noopener">https://listeningbooth.com/events/acoustic-open-mic-night-2025-10-08-18-30</a></div>
+            </div><div class="event-text-item">
+                <div class="event-text-date">October 9, 2025, 6:00 – 8:00 PM</div>
+                <div class="event-text-title">The Listening Booth Songwriting Club</div>
+                <div class="event-text-url"><a href="https://listeningbooth.com/events/the-listening-booth-songwriting-club-2025-10-09-18-00" target="_blank" rel="noopener">https://listeningbooth.com/events/the-listening-booth-songwriting-club-2025-10-09-18-00</a></div>
+            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="this-week">
+                        <div class="section-header">This Week</div>
+                        <ul class="sidebar-list">
+                            <li class="sidebar-item">
+                    <span class="item-title">Acoustic Open Mic Night</span>
+                    <span class="item-count">1d</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">Group Voice Lessons</span>
+                    <span class="item-count">2d</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">Sonia Disappear Fear with Joe Barbella</span>
+                    <span class="item-count">4d</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">Willy Porter with The Fritz Gambit</span>
+                    <span class="item-count">5d</span>
+                </li><li class="sidebar-item">
+                    <span class="item-title">Sunday Social Jam Night</span>
+                    <span class="item-count">5d</span>
+                </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <p>Last Updated: 9/17/2025, 1:45:04 PM</p>
+                <p>The Listening Booth Events System</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

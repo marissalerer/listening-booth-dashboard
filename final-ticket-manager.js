@@ -1,4 +1,417 @@
-// final-ticket-manager.js - Complete version with ticketed events list
+async saveHTMLReport(filename = null) {
+        const reportData = await this.generateTicketReport(20);
+        
+        if (!reportData.success) {
+            console.log('Error generating report:', reportData.error);
+            return;
+        }
+        
+        const timestamp = new Date().toISOString().slice(0, 16).replace(/[:.]/g, '-');
+        const file = filename || `listening-booth-tickets-${timestamp}.html`;
+        
+        // Generate and save CSS file
+        await this.generateCSSFile();
+        
+        const html = this.generateHTML(reportData.report);
+        fs.writeFileSync(file, html);
+        
+        console.log(`HTML ticket report saved to ${file}`);
+        console.log(`CSS styles saved to report-styles.css`);
+        console.log('Perfect for sharing with your team!');
+        
+        return { success: true, filename: file, cssFile: 'report-styles.css' };
+    }
+
+    async generateCSSFile() {
+        // You would typically compile SCSS to CSS here
+        // For now, I'll provide the compiled CSS
+        const css = `/* Compiled from report-styles.scss */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  padding: 40px;
+  text-align: center;
+}
+
+.header .venue-name {
+  font-size: 3em;
+  margin: 0;
+  font-weight: 300;
+}
+
+.header p {
+  margin-top: 10px;
+  opacity: 0.9;
+}
+
+.content {
+  padding: 40px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.summary-card .summary-number {
+  font-size: 2.5em;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.summary-card .summary-label {
+  opacity: 0.9;
+}
+
+.note {
+  background: #f8f9fa;
+  border: 1px solid #f1f3f4;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 30px;
+  color: #6b7280;
+  font-size: 0.9em;
+}
+
+.note strong {
+  color: #333333;
+}
+
+.sections {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.events-section {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.section-header {
+  background: #f8f9fa;
+  padding: 20px;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+  font-size: 1.2em;
+  color: #333333;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.top-events, .this-week, .all-events-text {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.events-grid {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+}
+
+.event-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.event-card .event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.event-card .event-header .event-type {
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.event-card .event-header .days-away {
+  background: #f8f9fa;
+  color: #4a5568;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+
+.event-card .event-title {
+  font-size: 1.2em;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+
+.event-card .event-date {
+  color: #666666;
+  margin-bottom: 6px;
+  font-size: 0.9em;
+}
+
+.event-card .event-summary {
+  color: #555555;
+  font-size: 0.9em;
+  line-height: 1.4;
+  margin-bottom: 15px;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.event-card .event-sales {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.event-card .event-sales .tickets-sold {
+  padding: 6px 12px;
+  border-radius: 15px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.event-card .event-sales .tickets-sold.status-high {
+  background: #10b981;
+}
+
+.event-card .event-sales .tickets-sold.status-medium {
+  background: #f59e0b;
+}
+
+.event-card .event-sales .tickets-sold.status-low {
+  background: #6b7280;
+}
+
+.event-card .event-sales .tickets-sold.status-urgent {
+  background: #ef4444;
+}
+
+.event-card .event-sales .tickets-sold-rsvp {
+  padding: 6px 12px;
+  border-radius: 15px;
+  color: #6b7280;
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+.event-card .event-sales .paid-badge,
+.event-card .event-sales .free-badge,
+.event-card .event-sales .rsvp-badge {
+  font-size: 0.75em;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  color: #4a5568;
+}
+
+.sidebar-list {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.sidebar-list .sidebar-item {
+  padding: 15px 20px;
+  border-bottom: 1px solid #f6f8fa;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar-list .sidebar-item:last-child {
+  border-bottom: none;
+}
+
+.sidebar-list .sidebar-item .item-title {
+  font-weight: 500;
+  color: #333333;
+  line-height: 1.3;
+}
+
+.sidebar-list .sidebar-item .item-count {
+  background: #667eea;
+  color: #ffffff;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 0.8em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.all-events-text {
+  margin-bottom: 20px;
+}
+
+.all-events-text .events-text-list {
+  padding: 15px 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.all-events-text .events-text-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.all-events-text .events-text-list::-webkit-scrollbar-track {
+  background: #f8f9fa;
+}
+
+.all-events-text .events-text-list::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+.all-events-text .events-text-list::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.all-events-text .events-text-list .event-text-item {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f6f8fa;
+}
+
+.all-events-text .events-text-list .event-text-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.all-events-text .events-text-list .event-text-item .event-text-date {
+  font-size: 0.9em;
+  color: #666666;
+  margin-bottom: 5px;
+}
+
+.all-events-text .events-text-list .event-text-item .event-text-title {
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 5px;
+  line-height: 1.3;
+}
+
+.all-events-text .events-text-list .event-text-item .event-text-url {
+  font-size: 0.8em;
+}
+
+.all-events-text .events-text-list .event-text-item .event-text-url a {
+  color: #667eea;
+  text-decoration: none;
+  word-break: break-all;
+  line-height: 1.3;
+}
+
+.all-events-text .events-text-list .event-text-item .event-text-url a:hover {
+  color: #5a67d8;
+  text-decoration: underline;
+}
+
+.footer {
+  text-align: center;
+  margin-top: 40px;
+  color: #666666;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 20px;
+}
+
+.footer p {
+  margin-bottom: 5px;
+}
+
+.footer p:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 1200px) {
+  .sections {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    flex-direction: row;
+  }
+}
+
+@media (max-width: 768px) {
+  .summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .sidebar {
+    flex-direction: column;
+  }
+  .header .venue-name {
+    font-size: 2em;
+  }
+  .content {
+    padding: 20px;
+  }
+  .summary-card {
+    padding: 20px;
+  }
+  .summary-card .summary-number {
+    font-size: 2em;
+  }
+}`;
+
+        fs.writeFileSync('report-styles.css', css);
+        return { success: true, filename: 'report-styles.css' };
+    }// final-ticket-manager.js - Complete version with ticketed events list
 require('dotenv').config();
 const axios = require('axios');
 const fs = require('fs');
@@ -563,6 +976,9 @@ class FinalTicketManager {
                 const ticketWord = event.ticketsSold === 1 ? 'ticket' : 'tickets';
                 ticketInfo = `${event.ticketsSold} ${ticketWord}`;
             }
+
+            // Apply special class to RSVP-only tickets-sold span
+            const ticketClass = event.isRSVPOnly ? 'tickets-sold-rsvp' : `tickets-sold ${statusClass}`;
             
             return `
                 <div class="event-card">
@@ -574,7 +990,7 @@ class FinalTicketManager {
                     <div class="event-date">${event.date}</div>
                     ${event.summary ? `<div class="event-summary">${event.summary}</div>` : ''}
                     <div class="event-sales">
-                        <span class="tickets-sold ${statusClass}">${ticketInfo}</span>
+                        <span class="${ticketClass}">${ticketInfo}</span>
                         ${ticketBadge}
                     </div>
                 </div>
@@ -621,272 +1037,7 @@ class FinalTicketManager {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Listening Booth - Ticket Sales Report</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }
-        .venue-name {
-            font-size: 3em;
-            margin: 0;
-            font-weight: 300;
-        }
-        .content {
-            padding: 40px;
-        }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-        .summary-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 25px;
-            border-radius: 12px;
-            text-align: center;
-        }
-        .summary-number {
-            font-size: 2.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .note {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 30px;
-            color: #6c757d;
-            font-size: 0.9em;
-        }
-        .sections {
-            display: grid;
-            grid-template-columns: 1fr 400px;
-            gap: 30px;
-            margin-bottom: 40px;
-        }
-        .events-section {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .section-header {
-            background: #f8f9fa;
-            padding: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            font-weight: 600;
-            font-size: 1.2em;
-        }
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-        .top-events, .this-week, .all-events-text {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        .events-grid {
-            display: grid;
-            gap: 20px;
-            padding: 20px;
-        }
-        .event-card {
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-        .event-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
-        }
-        .event-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .event-type {
-            color: white;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 600;
-        }
-        .days-away {
-            background: #f3f4f6;
-            color: #374151;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: 600;
-        }
-        .event-title {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        .event-date {
-            color: #666;
-            margin-bottom: 6px;
-            font-size: 0.9em;
-        }
-        .event-summary {
-            color: #555;
-            font-size: 0.9em;
-            line-height: 1.4;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 6px;
-        }
-        .event-sales {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 12px;
-        }
-        .tickets-sold {
-            padding: 6px 12px;
-            border-radius: 15px;
-            color: white;
-            font-weight: 600;
-            font-size: 0.85em;
-        }
-        .status-high { background: #10b981; }
-        .status-medium { background: #f59e0b; }
-        .status-low { background: #6b7280; }
-        .status-urgent { background: #ef4444; }
-        .paid-badge, .free-badge, .rsvp-badge {
-            font-size: 0.75em;
-            padding: 3px 6px;
-            border-radius: 8px;
-            background: #f3f4f6;
-            color: #374151;
-        }
-        .sidebar-list {
-            padding: 0;
-            margin: 0;
-            list-style: none;
-        }
-        .sidebar-item {
-            padding: 15px 20px;
-            border-bottom: 1px solid #f3f4f6;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .sidebar-item:last-child {
-            border-bottom: none;
-        }
-        .item-title {
-            font-weight: 500;
-            color: #333;
-        }
-        .item-count {
-            background: #667eea;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 10px;
-            font-size: 0.8em;
-            font-weight: 600;
-        }
-        .all-events-text {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-        .events-text-list {
-            padding: 15px 20px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .event-text-item {
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        .event-text-item:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        .event-text-date {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 5px;
-        }
-        .event-text-title {
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 5px;
-            line-height: 1.3;
-        }
-        .event-text-url {
-            font-size: 0.8em;
-        }
-        .event-text-url a {
-            color: #667eea;
-            text-decoration: none;
-            word-break: break-all;
-            line-height: 1.3;
-        }
-        .event-text-url a:hover {
-            color: #5a67d8;
-            text-decoration: underline;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 40px;
-            color: #666;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 20px;
-        }
-        @media (max-width: 1200px) {
-            .sections {
-                grid-template-columns: 1fr;
-            }
-            .sidebar {
-                flex-direction: row;
-            }
-        }
-        @media (max-width: 768px) {
-            .summary-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-            .sidebar {
-                flex-direction: column;
-            }
-            .venue-name {
-                font-size: 2em;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="report-styles.css">
 </head>
 <body>
     <div class="container">
@@ -899,19 +1050,19 @@ class FinalTicketManager {
             <div class="summary-grid">
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.totalUpcomingEvents}</div>
-                    <div>Total Events</div>
+                    <div class="summary-label">Total Events</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.totalTicketsSold}</div>
-                    <div>Tickets Sold</div>
+                    <div class="summary-label">Tickets Sold</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.ticketedEventsCount}</div>
-                    <div>Ticketed Events</div>
+                    <div class="summary-label">Ticketed Events</div>
                 </div>
                 <div class="summary-card">
                     <div class="summary-number">${report.summary.averageTicketsPerEvent}</div>
-                    <div>Avg per Ticketed Event</div>
+                    <div class="summary-label">Avg per Ticketed Event</div>
                 </div>
             </div>
             
